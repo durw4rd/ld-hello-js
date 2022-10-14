@@ -8,6 +8,11 @@
   </head>
   <body>
     <script>
+
+    function print_r(o) {
+      return JSON.stringify(o,null,'\t').replace(/\n/g,'<br>').replace(/\t/g,'&nbsp;&nbsp;&nbsp;'); 
+    }
+
     function main()
     {
       // Set clientSideID to your LaunchDarkly client-side ID
@@ -39,20 +44,35 @@
       const ldclient = LDClient.initialize(clientSideID, user, options);
 
       function render() {
+        // Print user info to the screen
+        const userInfo = document.createElement("p");
+        userInfo.innerHTML = print_r(user);
+        div.appendChild(userInfo, div.firstChild);
+        // Evaluate a flag and print result to the screen
         const flagValue = ldclient.variation(flagKey, false);
+        const label = `Feature flag << ${flagKey} >> is << ${flagValue} >> for this user`;
+        const flagInfo = document.createElement("p");
+        flagInfo.innerText = label;
+        div.appendChild(flagInfo, div.firstChild);
+
+        // Retrieve values for all flags
         const allFlagsResult = ldclient.allFlags();
-        console.log(allFlagsResult);
-        const label = 'Feature flag ' + flagKey + ' is ' + flagValue + ' for this user';
-        div.replaceChild(document.createTextNode(label), div.firstChild);
+        const allFlagsToScreen = document.createElement("p");
+        allFlagsToScreen.innerHTML = print_r(allFlagsResult);
+        div.appendChild(allFlagsToScreen, div.firstChild);
       }
 
       ldclient.on('initialized', () => {
         const end = performance.now();
         console.log(`SDK Initialised. Time to initialise: ${(end - start).toFixed(2)} ms`);
-        div.appendChild(document.createTextNode('SDK successfully initialized!'), div.firstChild);
+        const sdkInitGood = document.createElement("p");
+        sdkInitGood.innerText = `SDK successfully initialized! It took ${(end - start).toFixed(2)} ms`;
+        div.appendChild(sdkInitGood, div.firstChild);
       });
       ldclient.on('failed', () => {
-        div.appendChild(document.createTextNode('SDK failed to initialize'), div.firstChild);
+        const sdkInitBad = document.createElement("p");
+        sdkInitBad.innerText = 'SDK failed to initialize';
+        div.appendChild(sdkInitBad, div.firstChild);
       });
       ldclient.on('ready', render);
       ldclient.on('change', render);
@@ -64,7 +84,7 @@
       // and flag usage statistics will not appear on your dashboard.
       // In a normal long-running application, the SDK would continue
       // running and events would be delivered automatically in the background.
-      // ldclient.close();
+      ldclient.close();
     }
     main();
     </script>
