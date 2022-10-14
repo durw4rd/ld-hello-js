@@ -13,6 +13,19 @@
       return JSON.stringify(o,null,'\t').replace(/\n/g,'<br>').replace(/\t/g,'&nbsp;&nbsp;&nbsp;'); 
     }
 
+    function createParagraph(text) {
+      const newPara = document.createElement("p");
+      if (typeof(text) == "object") {
+        newPara.innerHTML = print_r(text);
+      } else if (typeof(text) == "string") {
+        newPara.innerText = text;
+      } else {
+        console.log("Potentially unsupported data type");
+        console.log(typeof(text));
+      }
+      return newPara;
+    }
+
     function main()
     {
       // Set clientSideID to your LaunchDarkly client-side ID
@@ -45,33 +58,28 @@
 
       function render() {
         // Print user info to the screen
-        const userInfo = document.createElement("p");
-        userInfo.innerHTML = print_r(user);
+        const userInfo = createParagraph(user);
         div.appendChild(userInfo, div.firstChild);
+
         // Evaluate a flag and print result to the screen
         const flagValue = ldclient.variation(flagKey, false);
         const label = `Feature flag << ${flagKey} >> is << ${flagValue} >> for this user`;
-        const flagInfo = document.createElement("p");
-        flagInfo.innerText = label;
+        const flagInfo = createParagraph(label);
         div.appendChild(flagInfo, div.firstChild);
 
         // Retrieve values for all flags
         const allFlagsResult = ldclient.allFlags();
-        const allFlagsToScreen = document.createElement("p");
-        allFlagsToScreen.innerHTML = print_r(allFlagsResult);
+        const allFlagsToScreen = createParagraph(allFlagsResult);
         div.appendChild(allFlagsToScreen, div.firstChild);
       }
 
       ldclient.on('initialized', () => {
         const end = performance.now();
-        console.log(`SDK Initialised. Time to initialise: ${(end - start).toFixed(2)} ms`);
-        const sdkInitGood = document.createElement("p");
-        sdkInitGood.innerText = `SDK successfully initialized! It took ${(end - start).toFixed(2)} ms`;
+        const sdkInitGood = createParagraph(`SDK successfully initialized! It took ${(end - start).toFixed(2)} ms`);
         div.appendChild(sdkInitGood, div.firstChild);
       });
       ldclient.on('failed', () => {
-        const sdkInitBad = document.createElement("p");
-        sdkInitBad.innerText = 'SDK failed to initialize';
+        const sdkInitBad = createParagraph('SDK failed to initialize');
         div.appendChild(sdkInitBad, div.firstChild);
       });
       ldclient.on('ready', render);
