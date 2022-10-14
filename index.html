@@ -11,10 +11,10 @@
     function main()
     {
       // Set clientSideID to your LaunchDarkly client-side ID
-      const clientSideID = '';
+      const clientSideID = '62e152c30e7117115603feae';
 
       // Set flagKey to the feature flag key you want to evaluate
-      const flagKey = 'my-boolean-flag';
+      const flagKey = 'newui';
 
       // Set up the user properties. This user should appear on your
       // LaunchDarkly users dashboard soon after you run the demo.
@@ -32,15 +32,23 @@
         return;
       }
 
-      const ldclient = LDClient.initialize(clientSideID, user);
+      const options = {
+        // streaming: false
+      }
+      const start = performance.now();
+      const ldclient = LDClient.initialize(clientSideID, user, options);
 
       function render() {
         const flagValue = ldclient.variation(flagKey, false);
+        const allFlagsResult = ldclient.allFlags();
+        console.log(allFlagsResult);
         const label = 'Feature flag ' + flagKey + ' is ' + flagValue + ' for this user';
         div.replaceChild(document.createTextNode(label), div.firstChild);
       }
 
       ldclient.on('initialized', () => {
+        const end = performance.now();
+        console.log(`SDK Initialised. Time to initialise: ${(end - start).toFixed(2)} ms`);
         div.appendChild(document.createTextNode('SDK successfully initialized!'), div.firstChild);
       });
       ldclient.on('failed', () => {
