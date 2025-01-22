@@ -1,101 +1,488 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge;chrome=1">
-    <title>LaunchDarkly tutorial</title>
-    <script src="https://unpkg.com/launchdarkly-js-client-sdk@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/uuid@latest/dist/umd/uuidv4.min.js"></script>
-  </head>
-  <body>
-    <script>
 
-    function print_r(o) {
-      return JSON.stringify(o,null,'\t').replace(/\n/g,'<br>').replace(/\t/g,'&nbsp;&nbsp;&nbsp;'); 
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge;chrome=1">
+  <title>LaunchDarkly tutorial</title>
+  <script src="https://unpkg.com/launchdarkly-js-client-sdk@3.5.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/uuid@latest/dist/umd/uuidv4.min.js"></script>
+
+  <!-- Mixpanel SDK import -->
+  <script type="text/javascript">
+    // Mixpanel SDK import
+    (function (f, b) { if (!b.__SV) { var e, g, i, h; window.mixpanel = b; b._i = []; b.init = function (e, f, c) { function g(a, d) { var b = d.split("."); 2 == b.length && ((a = a[b[0]]), (d = b[1])); a[d] = function () { a.push([d].concat(Array.prototype.slice.call(arguments, 0))); }; } var a = b; "undefined" !== typeof c ? (a = b[c] = []) : (c = "mixpanel"); a.people = a.people || []; a.toString = function (a) { var d = "mixpanel"; "mixpanel" !== c && (d += "." + c); a || (d += " (stub)"); return d; }; a.people.toString = function () { return a.toString(1) + ".people (stub)"; }; i = "disable time_event track track_pageview track_links track_forms track_with_groups add_group set_group remove_group register register_once alias unregister identify name_tag set_config reset opt_in_tracking opt_out_tracking has_opted_in_tracking has_opted_out_tracking clear_opt_in_out_tracking start_batch_senders people.set people.set_once people.unset people.increment people.append people.union people.track_charge people.clear_charges people.delete_user people.remove".split(" "); for (h = 0; h < i.length; h++) g(a, i[h]); var j = "set set_once union unset remove delete".split(" "); a.get_group = function () { function b(c) { d[c] = function () { call2_args = arguments; call2 = [c].concat(Array.prototype.slice.call(call2_args, 0)); a.push([e, call2]); }; } for (var d = {}, e = ["get_group"].concat(Array.prototype.slice.call(arguments, 0)), c = 0; c < j.length; c++) b(j[c]); return d; }; b._i.push([e, f, c]); }; b.__SV = 1.2; e = f.createElement("script"); e.type = "text/javascript"; e.async = !0; e.src = "undefined" !== typeof MIXPANEL_CUSTOM_LIB_URL ? MIXPANEL_CUSTOM_LIB_URL : "file:" === f.location.protocol && "//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js".match(/^\/\//) ? "https://cdn.mxpnl.com/libs/mixpanel-2-latest.min.js" : "//cdn.mxpnl.com/libs/mixpanel-2-latest.min.js"; g = f.getElementsByTagName("script")[0]; g.parentNode.insertBefore(e, g); } })(document, window.mixpanel || []);
+  </script>
+</head>
+
+<body>
+  <script>
+    // Utility functions for DOM manipulation and data formatting
+    const utils = {
+        print_r(obj) {
+            return JSON.stringify(obj, null, '\t')
+                .replace(/\n/g, '<br>')
+                .replace(/\t/g, '&nbsp;&nbsp;&nbsp;');
+        },
+
+        createParagraph(text) {
+            const newPara = document.createElement("p");
+            if (typeof text === "object") {
+                newPara.innerHTML = this.print_r(text);
+            } else if (typeof text === "string") {
+                newPara.innerText = text;
+            } else {
+                console.warn("Unsupported data type:", typeof text);
+            }
+            return newPara;
+        },
+
+        createElement(type, text) {
+            const element = document.createElement(type);
+            if (text) element.appendChild(document.createTextNode(text));
+            return element;
+        }
+    };
+
+    // LaunchDarkly configuration settings
+    const ldConfig = {
+        clientSideID: '6278fd7fe3666b154172b5f3', // michal-demo-project -> test
+        // const clientSideID = '6617c9a16f707a0fa61a600b'; // Entain -> Portal-BetMGM -> hidden-live
+        // const clientSideID = '67347cffbe405d084750e1c7'; // SportsBetslipTest -> Test
+        // const clientSideID = '6737655ebb35570854af24d2'; // SportsBetslipTest -> Beta
+
+        flagKey: 'fun-flag',
+        
+        getContext() {
+            return {
+                kind: "multi",
+                session: {
+                    key: "session-key-1",
+                    anonymous: true
+                },
+                device: {
+                    key: "device-key-1",
+                    type: "device type"
+                }
+            };
+        },
+
+        getUser() {
+            return {
+                kind: "user",
+                anonymous: true,
+                key: "user-key-123"
+            };
+        },
+
+        getInitOptions() {
+            return {
+                evaluationReasons: true,
+                logger: LDClient.basicLogger({ level: "debug" }),
+                inspectors: [{
+                    type: 'flag-used',
+                    name: 'flag-used-inspector',
+                    method: this.flagEvalHandler
+                }]
+            };
+        },
+
+        flagEvalHandler(flagKey, flagDetail, context) {
+            const { reason, variationIndex, value } = flagDetail;
+            console.log(flagDetail);
+            const inExperiment = reason?.inExperiment || false;
+            console.log(`User ${inExperiment ? 'IS' : 'IS NOT'} in experiment!`);
+        }
+    };
+
+    // Styles for the application
+    const appStyles = `
+        .section {
+            margin: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.2em;
+        }
+        .metrics-form {
+            margin-bottom: 15px;
+        }
+        .metrics-form input {
+            margin: 5px;
+            padding: 5px;
+        }
+        .metrics-form button {
+            margin: 5px;
+            padding: 5px 10px;
+        }
+        .tracked-event {
+            padding: 8px;
+            margin: 5px 0;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        .tracked-event:nth-child(even) {
+            background-color: #eef;
+        }
+        .flag-controls {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .flag-controls input {
+            padding: 5px;
+            flex-grow: 1;
+        }
+        .flag-controls button {
+            padding: 5px 10px;
+        }
+        .context-controls {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .context-controls textarea {
+            padding: 8px;
+            min-height: 100px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        .context-controls button {
+            padding: 5px 10px;
+            align-self: flex-start;
+        }
+        .error-message {
+            color: #d32f2f;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+    `;
+
+    // UI Manager class for handling all UI-related operations
+    class UIManager {
+        constructor() {
+            this.initializeStyles();
+            this.initializeSections();
+            this.setupMetricsUI();
+        }
+
+        initializeStyles() {
+            const style = document.createElement('style');
+            style.textContent = appStyles;
+            document.head.appendChild(style);
+        }
+
+        initializeSections() {
+            this.initStatus = this.createSection('SDK Status', 'Initializing...');
+            this.userDetails = this.createSection('Context Details');
+            this.flagInfoContainer = this.createSection('Flag Evaluation Detail');
+            this.metricsSection = this.createSection('Events Tracking');
+
+            document.body.appendChild(this.initStatus);
+            document.body.appendChild(this.userDetails);
+            document.body.appendChild(this.flagInfoContainer);
+            document.body.appendChild(this.metricsSection);
+        }
+
+        createSection(title, initialContent = '') {
+            const section = utils.createElement('div');
+            section.className = 'section';
+            
+            const heading = utils.createElement('h2', title);
+            section.appendChild(heading);
+            
+            if (initialContent) {
+                section.appendChild(utils.createElement('div', initialContent));
+            }
+            
+            return section;
+        }
+
+        updateInitStatus(text) {
+            const statusContent = this.initStatus.querySelector('div');
+            if (statusContent) {
+                statusContent.textContent = text;
+            } else {
+                this.initStatus.appendChild(utils.createElement('div', text));
+            }
+        }
+
+        render(ldclient, context) {
+            // Update context info
+            this.setupContextControls(ldclient, context);
+
+            // Initial flag evaluation
+            this.setupFlagEvaluation(ldclient);
+
+            ldclient.track('conversion-event-1', null, 2);
+            ldclient.flush();
+        }
+
+        setupContextControls(ldclient, initialContext) {
+            // Create controls container
+            const controlsDiv = utils.createElement('div');
+            controlsDiv.className = 'context-controls';
+
+            // Create context input
+            const contextInput = utils.createElement('textarea');
+            contextInput.placeholder = 'Enter LaunchDarkly context as JSON';
+            contextInput.value = JSON.stringify(initialContext, null, 2);
+
+            // Create error message element
+            const errorMessage = utils.createElement('div');
+            errorMessage.className = 'error-message';
+            errorMessage.style.display = 'none';
+
+            // Create update button
+            const updateButton = utils.createElement('button', 'Update Context');
+
+            // Create results container for current context
+            const resultsDiv = utils.createElement('div');
+            resultsDiv.className = 'context-results';
+
+            // Function to update the context display
+            const updateContextDisplay = (context) => {
+                const contextInfo = utils.createParagraph(context);
+                resultsDiv.innerHTML = '';
+                resultsDiv.appendChild(contextInfo);
+            };
+
+            // Add click handler
+            updateButton.addEventListener('click', async () => {
+                try {
+                    // Parse the JSON input
+                    const newContext = JSON.parse(contextInput.value);
+                    
+                    // Validate context has required properties
+                    if (!newContext.kind) {
+                        throw new Error("Context must have a 'kind' property");
+                    }
+                    if (!newContext.key && newContext.kind !== 'multi') {
+                        throw new Error("Context must have a 'key' property");
+                    }
+
+                    // Update the client with new context
+                    await ldclient.identify(newContext);
+                    console.log('Context updated:', newContext);
+
+                    // Update the display
+                    updateContextDisplay(newContext);
+
+                    // Clear any error message
+                    errorMessage.style.display = 'none';
+                    errorMessage.textContent = '';
+
+                } catch (error) {
+                    // Show error message
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = `Error: ${error.message}`;
+                    console.error('Context update failed:', error);
+                    
+                    // Update display with current context from ldclient
+                    const currentContext = ldclient.getContext();
+                    updateContextDisplay(currentContext);
+                    
+                    // Reset textarea to show current valid context
+                    contextInput.value = JSON.stringify(currentContext, null, 2);
+                }
+            });
+
+            // Append controls
+            controlsDiv.appendChild(contextInput);
+            controlsDiv.appendChild(updateButton);
+            controlsDiv.appendChild(errorMessage);
+
+            // Replace content while preserving heading
+            const heading = this.userDetails.querySelector('h2');
+            this.userDetails.innerHTML = '';
+            this.userDetails.appendChild(heading);
+            this.userDetails.appendChild(controlsDiv);
+            this.userDetails.appendChild(resultsDiv);
+
+            // Show initial context
+            updateContextDisplay(initialContext);
+        }
+
+        setupMetricsUI() {
+            // Create form container
+            const form = utils.createElement('div');
+            form.className = 'metrics-form';
+
+            // Create event key input
+            const keyInput = utils.createElement('input');
+            keyInput.placeholder = 'Event Key';
+            keyInput.value = 'cta-click';  // Default value
+
+            // Create numeric value input
+            const valueInput = utils.createElement('input');
+            valueInput.type = 'number';
+            valueInput.placeholder = 'Numeric Value (optional)';
+
+            // Create track button
+            const trackButton = utils.createElement('button', 'Track Event');
+
+            // Create events container
+            const eventsContainer = utils.createElement('div');
+            eventsContainer.className = 'tracked-events';
+
+            // Add event listener to button
+            trackButton.addEventListener('click', () => {
+                const eventKey = keyInput.value.trim();
+                const numericValue = valueInput.value ? parseFloat(valueInput.value) : null;
+                
+                if (eventKey) {
+                    this.trackEvent(eventKey, numericValue);
+                    // Clear inputs after tracking
+                    valueInput.value = '';
+                }
+            });
+
+            // Append elements to form
+            form.appendChild(keyInput);
+            form.appendChild(valueInput);
+            form.appendChild(trackButton);
+
+            // Add elements to events section
+            this.metricsSection.appendChild(form);
+            this.metricsSection.appendChild(eventsContainer);
+        }
+
+        trackEvent(eventKey, value = null) {
+            if (window.ldclient) {
+                // Track the event
+                window.ldclient.track(eventKey, null, value);
+                console.log(`Tracked event: ${eventKey}${value !== null ? ` with value: ${value}` : ''}`);
+
+                // Add event to UI
+                const eventElement = utils.createElement('div');
+                eventElement.className = 'tracked-event';
+                
+                const timestamp = new Date().toLocaleTimeString();
+                const eventText = value !== null
+                    ? `[${timestamp}] Tracked: "${eventKey}" with value: ${value}`
+                    : `[${timestamp}] Tracked: "${eventKey}"`;
+                
+                eventElement.textContent = eventText;
+
+                // Add to the beginning of the list
+                const eventsContainer = this.metricsSection.querySelector('.tracked-events');
+                eventsContainer.insertBefore(eventElement, eventsContainer.firstChild);
+            } else {
+                console.warn('LaunchDarkly client not initialized');
+            }
+        }
+
+        setupFlagEvaluation(ldclient) {
+            // Create controls container
+            const controlsDiv = utils.createElement('div');
+            controlsDiv.className = 'flag-controls';
+
+            // Create flag key input
+            const flagInput = utils.createElement('input');
+            flagInput.placeholder = 'Enter flag key';
+            flagInput.value = ldConfig.flagKey; // Set default value
+
+            // Create evaluate button
+            const evaluateButton = utils.createElement('button', 'Evaluate Flag');
+
+            // Create results container
+            const resultsDiv = utils.createElement('div');
+            resultsDiv.className = 'flag-results';
+
+            // Add click handler
+            evaluateButton.addEventListener('click', () => {
+                const flagKey = flagInput.value.trim();
+                if (flagKey) {
+                    this.evaluateFlag(ldclient, flagKey, resultsDiv);
+                }
+            });
+
+            // Append controls
+            controlsDiv.appendChild(flagInput);
+            controlsDiv.appendChild(evaluateButton);
+
+            // Replace content while preserving heading
+            const heading = this.flagInfoContainer.querySelector('h2');
+            this.flagInfoContainer.innerHTML = '';
+            this.flagInfoContainer.appendChild(heading);
+            this.flagInfoContainer.appendChild(controlsDiv);
+            this.flagInfoContainer.appendChild(resultsDiv);
+
+            // Perform initial evaluation
+            this.evaluateFlag(ldclient, ldConfig.flagKey, resultsDiv);
+        }
+
+        evaluateFlag(ldclient, flagKey, resultsContainer) {
+            const flagValueDetail = ldclient.variationDetail(flagKey, false);
+            const flagInfoContent = utils.createElement('div');
+            
+            // Add flag key information
+            flagInfoContent.appendChild(
+                utils.createElement('p', `Flag Key: ${flagKey}`)
+            );
+            
+            // Add flag evaluation details
+            flagInfoContent.appendChild(utils.createParagraph(flagValueDetail));
+            
+            // Replace previous results
+            resultsContainer.innerHTML = '';
+            resultsContainer.appendChild(flagInfoContent);
+        }
     }
 
-    function createParagraph(text) {
-      const newPara = document.createElement("p");
-      if (typeof(text) == "object") {
-        newPara.innerHTML = print_r(text);
-      } else if (typeof(text) == "string") {
-        newPara.innerText = text;
-      } else {
-        console.log("Potentially unsupported data type");
-        console.log(typeof(text));
-      }
-      return newPara;
+    // LaunchDarkly Application class for managing the LD client
+    class LaunchDarklyApp {
+        constructor() {
+            this.ui = new UIManager();
+            this.startTime = performance.now();
+        }
+
+        async initialize() {
+            if (!ldConfig.clientSideID) {
+                this.ui.updateInitStatus('Please set clientSideID to your LaunchDarkly client-side ID first');
+                return;
+            }
+
+            const ldclient = LDClient.initialize(
+                ldConfig.clientSideID,
+                ldConfig.getUser(),
+                ldConfig.getInitOptions()
+            );
+
+            window.ldclient = ldclient;
+            this.setupEventListeners(ldclient);
+        }
+
+        setupEventListeners(ldclient) {
+            ldclient.on('initialized', () => {
+                const initTime = (performance.now() - this.startTime).toFixed(2);
+                this.ui.updateInitStatus('SDK Status: Initialized!');
+                this.ui.initStatus.appendChild(
+                    utils.createParagraph(`SDK successfully initialized! It took ${initTime} ms`)
+                );
+            });
+
+            ldclient.on('failed', () => {
+                this.ui.updateInitStatus('SDK failed to initialize');
+            });
+
+            ldclient.on('ready', () => this.ui.render(ldclient, ldConfig.getContext()));
+            ldclient.on('change', () => this.ui.render(ldclient, ldConfig.getContext()));
+        }
     }
 
-    function main()
-    {
-      // Set clientSideID to your LaunchDarkly client-side ID
-      const clientSideID = '62e152c30e7117115603feae';
+    // Initialize application when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        const app = new LaunchDarklyApp();
+        app.initialize();
+    });
+  </script>
+</body>
 
-      // Set flagKey to the feature flag key you want to evaluate
-      const flagKey = 'newui';
-
-      // Set up the user properties. This user should appear on your
-      // LaunchDarkly users dashboard soon after you run the demo.
-      const user = {
-        'key': uuidv4(),
-        'name': 'Sandy'
-      };
-
-      var div = document.createElement('div');
-      document.body.appendChild(div);
-      div.appendChild(document.createTextNode('Initializing...'));
-
-      if (clientSideID === '') {
-        div.replaceChild(document.createTextNode('Please edit index.html to set clientSideID to your LaunchDarkly client-side ID first'), div.firstChild);
-        return;
-      }
-
-      const options = {
-        // streaming: false
-      }
-      const start = performance.now();
-      const ldclient = LDClient.initialize(clientSideID, user, options);
-
-      function render() {
-        // Print user info to the screen
-        const userInfo = createParagraph(user);
-        div.appendChild(userInfo, div.firstChild);
-
-        // Evaluate a flag and print result to the screen
-        const flagValue = ldclient.variation(flagKey, false);
-        const label = `Feature flag << ${flagKey} >> is << ${flagValue} >> for this user`;
-        const flagInfo = createParagraph(label);
-        div.appendChild(flagInfo, div.firstChild);
-
-        // Retrieve values for all flags
-        const allFlagsResult = ldclient.allFlags();
-        const allFlagsToScreen = createParagraph(allFlagsResult);
-        div.appendChild(allFlagsToScreen, div.firstChild);
-      }
-
-      ldclient.on('initialized', () => {
-        const end = performance.now();
-        const sdkInitGood = createParagraph(`SDK successfully initialized! It took ${(end - start).toFixed(2)} ms`);
-        div.appendChild(sdkInitGood, div.firstChild);
-      });
-      ldclient.on('failed', () => {
-        const sdkInitBad = createParagraph('SDK failed to initialize');
-        div.appendChild(sdkInitBad, div.firstChild);
-      });
-      ldclient.on('ready', render);
-      ldclient.on('change', render);
-
-
-      // Here we ensure that the SDK shuts down cleanly and has a chance
-      // to deliver analytics envets to LaunchDarkly before the program
-      // exits. If analytics events are not delivered, the user properties
-      // and flag usage statistics will not appear on your dashboard.
-      // In a normal long-running application, the SDK would continue
-      // running and events would be delivered automatically in the background.
-      ldclient.close();
-    }
-    main();
-    </script>
-  </body>
 </html>
