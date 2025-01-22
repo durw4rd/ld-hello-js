@@ -169,6 +169,7 @@
         constructor() {
             this.initializeStyles();
             this.initializeSections();
+            this.setupClientIdControls();
             this.setupMetricsUI();
         }
 
@@ -179,11 +180,13 @@
         }
 
         initializeSections() {
+            this.clientIdSection = this.createSection('LaunchDarkly Client ID');
             this.initStatus = this.createSection('SDK Status', 'Initializing...');
             this.userDetails = this.createSection('Context Details');
             this.flagInfoContainer = this.createSection('Flag Evaluation Detail');
             this.metricsSection = this.createSection('Events Tracking');
 
+            document.body.appendChild(this.clientIdSection);
             document.body.appendChild(this.initStatus);
             document.body.appendChild(this.userDetails);
             document.body.appendChild(this.flagInfoContainer);
@@ -434,6 +437,83 @@
             resultsContainer.innerHTML = '';
             resultsContainer.appendChild(flagInfoContent);
         }
+
+        setupClientIdControls() {
+            // Create controls container
+            const controlsDiv = utils.createElement('div');
+            controlsDiv.className = 'client-id-controls';
+
+            // Create client ID input
+            const clientIdInput = utils.createElement('input');
+            clientIdInput.placeholder = 'Enter LaunchDarkly Client-side ID';
+            clientIdInput.value = ldConfig.clientSideID || '';
+            clientIdInput.style.width = '300px';
+
+            // Create initialize button
+            const initButton = utils.createElement('button', 'Initialize Client');
+
+            // Create error message element
+            const errorMessage = utils.createElement('div');
+            errorMessage.className = 'error-message';
+            errorMessage.style.display = 'none';
+
+            // Add click handler
+            initButton.addEventListener('click', async () => {
+                const newClientId = clientIdInput.value.trim();
+                
+                if (!newClientId) {
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = 'Error: Client-side ID is required';
+                    return;
+                }
+
+                try {
+                    // Update the config
+                    ldConfig.clientSideID = newClientId;
+                    
+                    // Trigger reinitialization
+                    if (window.app) {
+                        await window.app.reinitialize();
+                        
+                        // Clear any error message
+                        errorMessage.style.display = 'none';
+                        errorMessage.textContent = '';
+                    }
+                } catch (error) {
+                    errorMessage.style.display = 'block';
+                    errorMessage.textContent = `Error: ${error.message}`;
+                    console.error('Client initialization failed:', error);
+                }
+            });
+
+            // Append controls
+            controlsDiv.appendChild(clientIdInput);
+            controlsDiv.appendChild(initButton);
+            controlsDiv.appendChild(errorMessage);
+
+            // Add to section
+            this.clientIdSection.appendChild(controlsDiv);
+
+            // Add styles
+            const style = document.createElement('style');
+            style.textContent = `
+                .client-id-controls {
+                    display: flex;
+                    gap: 10px;
+                    align-items: center;
+                    margin-bottom: 15px;
+                }
+                .client-id-controls input {
+                    padding: 5px;
+                    flex-grow: 1;
+                }
+                .client-id-controls button {
+                    padding: 5px 10px;
+                    white-space: nowrap;
+                }
+            `;
+            document.head.appendChild(style);
+        }
     }
 
     // LaunchDarkly Application class for managing the LD client
@@ -441,6 +521,7 @@
         constructor() {
             this.ui = new UIManager();
             this.startTime = performance.now();
+            this.ldclient = null;
         }
 
         async initialize() {
@@ -449,14 +530,30 @@
                 return;
             }
 
-            const ldclient = LDClient.initialize(
+            this.ldclient = LDClient.initialize(
                 ldConfig.clientSideID,
                 ldConfig.getUser(),
                 ldConfig.getInitOptions()
             );
 
-            window.ldclient = ldclient;
-            this.setupEventListeners(ldclient);
+            window.ldclient = this.ldclient;
+            this.setupEventListeners(this.ldclient);
+        }
+
+        async reinitialize() {
+            // Reset UI state
+            this.ui.updateInitStatus('Initializing...');
+            this.startTime = performance.now();
+
+            // Close existing client if it exists
+            if (this.ldclient) {
+                await this.ldclient.close();
+                this.ldclient = null;
+                window.ldclient = null;
+            }
+
+            // Initialize new client
+            await this.initialize();
         }
 
         setupEventListeners(ldclient) {
@@ -479,8 +576,8 @@
 
     // Initialize application when DOM is ready
     document.addEventListener('DOMContentLoaded', () => {
-        const app = new LaunchDarklyApp();
-        app.initialize();
+        window.app = new LaunchDarklyApp();
+        window.app.initialize();
     });
   </script>
 </body>
