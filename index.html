@@ -94,7 +94,8 @@
                 inspectors: [{
                     type: 'flag-used',
                     name: 'flag-used-inspector',
-                    method: this.flagEvalHandler
+                    // method: this.flagEvalHandler
+                    method: this.sendCSAnalyticsEvent
                 }]
             };
         },
@@ -104,6 +105,32 @@
             console.log(flagDetail);
             const inExperiment = reason?.inExperiment || false;
             console.log(`User ${inExperiment ? 'IS' : 'IS NOT'} in experiment!`);
+        },
+
+        sendCSAnalyticsEvent(flagKey, flagDetail, context) {
+            const { value, variationIndex, reason } = flagDetail;
+            const { kind, key, name } = context;
+            
+            if (!!reason && !!reason.inExperiment) {
+                function callCShandler() {
+                    CS_CONF.integrations_handler.launchdarkly(flagKey, value, context);
+                    console.log(`#### CS Handler called ####`);
+                    console.log(flagKey, value, context);
+                    console.log(`###########################`);
+                }
+
+                if (
+                    window.CS_CONF &&
+                    window.CS_CONF.integrations_handler &&
+                    window.CS_CONF.integrations_handler.launchdarkly
+                ) {
+                    callCShandler();
+                } else {
+                    window.addEventListener("Contentsquare_LD_Integration_Launch", () => {
+                        callCShandler();
+                    });
+                }
+            }
         }
     };
 
