@@ -26,29 +26,54 @@
         })(window, document, 'https://static.hj.contentsquare.net/c/csq-', '.js', 5291754);
     </script>
     <script>
-        const launchdarklyIntegrationHandler = function(e, n, r) {
-            let o = !1;
-            const i = e;
-            if (i && "function" == typeof i.on && (o = !0),
-            o)
-                setTimeout((function() {
-                    i.on && i.on("change", (function(e) {
-                        const n = e
-                            , r = Object.keys(n);
-                        for (let e = 0; e < r.length; e++) {
-                            const o = r[e];
-                            let i = n[r[e]];
-                            i && i.hasOwnProperty("current") && (i = i.current,
-                            "object" != typeof i && "function" != typeof i && t(o, i))
-                        }
-                    }
-                    ))
-                }
-                ), 500);
-            else {
-                t(e, n)
+        const launchdarklyIntegrationHandler = function (flagKey, value, context) {
+            let isLDclient = false;
+            const client = flagKey;
+
+            if (client && typeof client.on === "function") {
+                isLDclient = true;
             }
-        }
+
+            if (isLDclient) {
+                //Old method -remove once all clients are using the latest
+                setTimeout(function () {
+                    if (client.on) {
+                        client.on("change", function (e) {
+                            const obj = e;
+                            const keys = Object.keys(obj);
+
+                            for (let i = 0; i < keys.length; i++) {
+                                const campaignName = keys[i];
+                                let variationName = obj[keys[i]];
+
+                                if (variationName && variationName.hasOwnProperty("current")) {
+                                    variationName = variationName.current;
+
+                                    if (typeof variationName != "object" && typeof variationName != "function") {
+                                        console.log(`$$$$$ Old Method called $$$$$`);
+                                        console.log(campaignName, variationName);
+                                        console.log(`$$$$$$$$$$$$$$$$$$$$$$$$$$$$$`);
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }, 500);
+                //Old method -remove once all clients are using the latest
+            } else {
+                const campaignName = flagKey;
+                const variationName = value;
+
+                console.log(`%%%%%% New method called %%%%%%`);
+                console.log(campaignName, variationName);
+                console.log(`%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%`);
+            }
+        };
+
+        if (typeof window.CustomEvent === "function") {
+            const evt = new window.CustomEvent("Contentsquare_LD_Integration_Launch");
+            window.dispatchEvent(evt);
+        } 
     </script>
 </head>
 
