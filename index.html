@@ -25,6 +25,7 @@
             r.appendChild(e);
         })(window, document, 'https://static.hj.contentsquare.net/c/csq-', '.js', 5291754);
     </script>
+    <!-- Contentsquare Ld Integration handler Fn -->
     <script>
         const launchdarklyIntegrationHandler = function (flagKey, value, context) {
             let isLDclient = false;
@@ -74,6 +75,10 @@
             const evt = new window.CustomEvent("Contentsquare_LD_Integration_Launch");
             window.dispatchEvent(evt);
         } 
+    </script>
+    <script>
+        // Create an instance of the Mixpanel object
+        mixpanel.init('39dd6339bbe8320cee69c7ea115c5495', {});
     </script>
 </head>
 
@@ -145,7 +150,8 @@
                     type: 'flag-used',
                     name: 'flag-used-inspector',
                     // method: this.flagEvalHandler
-                    method: this.sendCSAnalyticsEvent
+                    // method: this.sendCSAnalyticsEvent
+                    method: this.sendMixpanelEvent
                 }]
             };
         },
@@ -178,6 +184,24 @@
                         callCShandler();
                     });
                 }
+            }
+        },
+
+        sendMixpanelEvent(flagKey, flagDetail, context) {
+            const { value, variationIndex, reason } = flagDetail;
+            const { kind, key, name } = context;
+            console.log("Inside Mixpanel handler");
+
+            if (!!reason && !!reason.inExperiment) {
+                console.log("In experiment -> Mixpanel event triggered");
+                const eventName = `LD Flag Evaluation`;
+                const eventProperties = {
+                    flagKey,
+                    value,
+                    variationIndex,
+                }
+                console.log("mixpanel object", window.mixpanel);
+                window.mixpanel.track(eventName, eventProperties);
             }
         }
     };
